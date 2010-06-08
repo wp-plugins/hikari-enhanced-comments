@@ -3,7 +3,7 @@
 Plugin Name: Hikari Enhanced Comments
 Plugin URI: http://Hikari.ws/enhanced-comments/
 Description: Comments are enhanced with new features that make them more visible and becoming more exciting in website structure.
-Version: 0.02.09
+Version: 0.03.05
 Author: Hikari
 Author URI: http://Hikari.ws
 */
@@ -11,7 +11,7 @@ Author URI: http://Hikari.ws
 /**!
 *
 * I, Hikari, from http://Hikari.WS , and the original author of the Wordpress plugin named
-* Hikari Hikari Enhanced Comments, please keep this license terms and credit me if you redistribute the plugin
+* Hikari Enhanced Comments, please keep this license terms and credit me if you redistribute the plugin
 *
 *   This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,6 +24,7 @@ Author URI: http://Hikari.ws
 *****************************************************************************/
 
 define('HkEC_basename',plugin_basename(__FILE__));
+define('HkEC_pluginfile',__FILE__);
 
 require_once 'hikari-tools.php';
 require_once 'hikari-enhanced-comments-options.php';

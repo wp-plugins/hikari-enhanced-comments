@@ -12,8 +12,8 @@ $hkEC_Op = new HkEC_Op();
 class HkEC_Op extends HkEC_HkToolsOptions{
 
 	public $optionsName = 'hkEC';
-	public $optionspageName = "Hikari Enhanced Comments";
-	protected $pluginURL = "http://Hikari.ws/";
+	protected $pluginfile = HkEC_pluginfile;
+	protected $optionsDBVersion = 1;
 	
 	public $opStructure = array(
 		"database" => array( "name" => "ip2nation Database",
@@ -45,9 +45,6 @@ class HkEC_Op extends HkEC_HkToolsOptions{
 
 
 	public function __construct(){
-		$this->startup = false;
-		$this->debug = false;
-	
 		parent::__construct();
 	
 		$this->uninstallArgs = array(

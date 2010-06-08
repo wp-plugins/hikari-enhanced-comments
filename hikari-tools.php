@@ -5,7 +5,7 @@
 	
 	It's meant to be a virtual class, from which I extend my classes and  use its code.
 
-	version 0.11 20100314
+	version 0.24 20100530
 */
 
 
@@ -17,6 +17,9 @@ class HkEC_HkTools{
 
 	public $debug = false;
 	protected $startup = false;
+	
+	protected static $isSingleton = false;
+	protected static $thisObject = null;
 
 	protected $plugin_dir_path;
 	protected $plugin_dir_url;
@@ -29,11 +32,22 @@ class HkEC_HkTools{
 	
 		if($this->startup) add_action('plugins_loaded', array($this, 'startup'));
 	}
+
+	// a singleton class must overwrite __construct() and __clone(), setting them to private
+	// see http://en.wikipedia.org/wiki/Singleton_pattern#PHP
+	public static function getInstance(){
+		if($this->isSingleton){
+			if(!self::$thisObject) self::$thisObject = new self();;
+			return self::$thisObject;
+		}else{
+			return new self();
+		}
+	}
+	
 	
 	public function startup(){
 
 	}
-	
 	
 
 
@@ -44,8 +58,8 @@ class HkEC_HkTools{
 
 	public static function replace_accents($string){
 	  return str_replace(
-			array('‡','·','‚','„','‰', 'Á', 'Ë','È','Í','Î', 'Ï','Ì','Ó','Ô', 'Ò', 'Ú','Û','Ù','ı','ˆ', '˘','˙','˚','¸', '˝','ˇ',
-				'¿','¡','¬','√','ƒ', '«', '»','…',' ','À', 'Ã','Õ','Œ','œ', '—', '“','”','‘','’','÷', 'Ÿ','⁄','€','‹', '›',
+			array('√†','√°','√¢','√£','√§', '√ß', '√®','√©','√™','√´', '√¨','√≠','√Æ','√Ø', '√±', '√≤','√≥','√¥','√µ','√∂', '√π','√∫','√ª','√º', '√Ω','√ø',
+				'√Ä','√Å','√Ç','√É','√Ñ', '√á', '√à','√â','√ä','√ã', '√å','√ç','√é','√è', '√ë', '√í','√ì','√î','√ï','√ñ', '√ô','√ö','√õ','√ú', '√ù',
 				'?', '!', ' '),
 			array('a','a','a','a','a', 'c', 'e','e','e','e', 'i','i','i','i', 'n', 'o','o','o','o','o', 'u','u','u','u', 'y','y',
 				'A','A','A','A','A', 'C', 'E','E','E','E', 'I','I','I','I', 'N', 'O','O','O','O','O', 'U','U','U','U', 'Y',
@@ -62,12 +76,13 @@ isBlank tests to make sure a string is _really_ non-null.  It accepts one argume
 It returns true if the string is really a null string, and false otherwise.
 */	
 	public static function isBlank($string){
+		$string = trim($string);
+	
 		if(empty($string)) return true;
-		if ($string == "") return true;
 		
-		for ($i = 0; $i < strlen($string); $i++) {
+		for($i = 0; $i < strlen($string); $i++){
 			$c = substr($string, $i, 1);
-			if ( ($c != "\r" ) && ($c != " ") && ($c != "\n") && ($c != "\t")) {
+			if( ($c != "\r" ) && ($c != " ") && ($c != "\n") && ($c != "\t") && ($c != "\0") && ($c != "\x0B")){
 				return false;
 			}
 		}
@@ -80,13 +95,64 @@ It returns true if the string is really a null string, and false otherwise.
 		else		return "false";
 	}
 	
+	// deprecated, use dump() instead
 	public static function echoArray($array){
-		echo '<pre>';
-		print_r($array);
-		echo '</pre>';
+		echo "\n\n<pre>\n" . print_r($array,true) . "\n</pre>\n\n";
+	}
+	
+	public static function dump($var,$label=null,$type="krumo"){
+	
+		switch($type){
+			case "print_r":
+				echo "\n\n";
+				if(!empty($label)) echo "<p>$label</p>\n";
+				echo "<pre>\n" . print_r($var,true) . "\n</pre>\n\n";
+			
+				break;
+			case "var_dump":
+				echo "\n\n";
+				if(!empty($label)) echo "<p>$label</p>\n";
+				
+				echo "<pre>\n";
+				var_dump($var);
+				echo "\n</pre>\n\n";
+			
+				break;
+			
+			case "krumo":
+			default:
+				if(function_exists("krumo")){
+					if(krumo::isKrumoEnabled()){
+						echo "\n\n";
+						if(!empty($label)) echo "<p>$label</p>\n";
+						krumo($var);
+					}
+				}else{
+					self::dump($var,$label,"print_r");
+				}
+		
+		}
+	
 	}
 	
 
+	public static function urlencode_array($args){
+		if(!is_array($args)) return false;
+		$c = 0;
+		$out = '';
+		
+		foreach($args as $name => $value){
+			if($c++ != 0) $out .= '&';
+			$out .= urlencode("$name").'=';
+			if(is_array($value)){
+				$out .= urlencode(serialize($value));
+			}else{
+				$out .= urlencode("$value");
+			}
+		}
+		return $out . "\n";
+	}
+	
 // -------------------------------------
 //	Misc
 // -------------------------------------
@@ -211,7 +277,7 @@ $op_structure = array(
 				"desc" => "This option is a test of a  possible option whose value is of type 'checkbox'",
 				"largeDesc" => "<p class=\"description\">This option is a test of a  possible option whose value is of type 'checkbox'</p>",
 				"id" => "checkbox_test",
-				"default" => array('op1' => true, 'op2' => false, 'op4' => true ),	// 'op3' has no default value, it's the same as 'op3' => false
+				"default" => array('op1' => true, 'op2' => false, 'op3' => false, 'op4' => true ),	// even items with default value as false must be included
 				"type" => "checkbox",
 				"options" => array(
 							array(
@@ -231,8 +297,19 @@ $op_structure = array(
 								'desc'		=> 'op4 description'
 							)
 				)
+		),
+		
+		'custom_test' => array(	"name" => 'Custom option Test',
+				"desc" => "This option is a test of a  possible option whose tyle is 'custom'",
+				"largeDesc" => "<p class=\"description\">'custom' means the class consumer can define a callback, which will print custom HTML code</p>",
+				"id" => 'custom_test',
+				"default" => null,	// any value can be used in default, just make sure it's a valid value related to the data type your custom code will use
+				"type" => "custom",
+				"options" => array(	"callback" => "callback_function",
+							"parameter" => array("name1"=>"value1", "name2"=>"value2")
+							)
 		)
-	
+		
 	
 	
 	);
@@ -241,15 +318,18 @@ $op_structure = array(
 
 
 	public $optionsName;
+	protected $pluginfile;
+	
+	
 	public $optionspageName;
 	protected $pluginURL;
-	
-	
 	public $optionspagePath;
 	
 	protected $optionsDBName;
 	protected $optionsDBGroup;
 	public $optionsDBValue;
+	
+	protected $optionsDBVersion = 0;
 	
 	
 	protected $opStructure;
@@ -259,11 +339,17 @@ $op_structure = array(
 	
 	
 	public function __construct(){
+		require_once ABSPATH.'/wp-admin/includes/plugin.php';
+		$pluginInfo = get_plugin_data($this->pluginfile);
+	
+		$this->optionspageName = $pluginInfo['Name'];
+		$this->pluginURL = $pluginInfo['PluginURI'];
+	
 		$this->optionspagePath = 'options-general.php?page='.$this->optionsName;
 		$this->optionsDBName = $this->optionsName.'_options';
 		$this->optionsDBGroup = $this->optionsDBName.'_group';
 		
-		$this->optionsDBValue = self::loadOptions($this->optionsDBName, $this->opStructure);
+		$this->loadAllOptions();
 		
 
 
@@ -272,6 +358,32 @@ $op_structure = array(
 		add_action('admin_menu', array($this,'menuPrepare'));
 		
 		parent::__construct();
+	}
+	
+	
+	public function loadAllOptions(){
+		$this->optionsDBValue = $this->loadOptions($this->optionsDBName, $this->opStructure);
+	}
+	
+	public function loadOptions($dbName, $opStrucutre){
+		
+		$dbValue = get_option($dbName);
+		
+		// this option isn't saved on database, use default
+		if( empty($dbValue) ){
+			$dbValue['dbVersion'] = $this->optionsDBVersion;
+		
+			foreach($opStrucutre as $opItem){
+				$dbValue[ $opItem['id'] ] = $opItem['default'];
+			}
+		}
+		
+		// if it's saved, and version is different from expected, call function to deal with it
+		elseif($dbValue['dbVersion'] != $this->optionsDBVersion)
+				$dbValue = $this->options_version_verify($dbName,$dbValue);
+		
+		
+		return $dbValue;
 	}
 	
 	
@@ -312,18 +424,7 @@ $op_structure = array(
 
 
 	
-	public static function loadOptions($dbName, $opStrucutre){
-		$dbValue = get_option($dbName);
-	
-		// this option isn't saved on database, use default
-		if( empty($dbValue) ){
-			foreach($opStrucutre as $opItem){
-				$dbValue[ $opItem['id'] ] = $opItem['default'];
-			}
-		}
-		
-		return $dbValue;
-	}
+
 
 
 
@@ -386,15 +487,7 @@ $op_structure = array(
 			<tr> 
 				<?php echo $th_with_for; ?>
 				<td>
-					<input type="<?php echo $options_item['type']; ?>" size="<?php echo $options_item['options']['size']; ?>" <?php echo $nameid; echo $tx_width; ?> value="<?php
-
-						if( !empty($database_values[ $options_item['id'] ])){
-							echo $database_values[ $options_item['id'] ];
-						}else{
-							echo $options_item['default'];
-						}
-
-					?>" />
+					<input type="<?php echo $options_item['type']; ?>" size="<?php echo $options_item['options']['size']; ?>" <?php echo $nameid; echo $tx_width; ?> value="<?php echo htmlspecialchars($database_values[ $options_item['id'] ]); ?>" />
 
 					<?php echo $largeDesc; ?>
 				</td>
@@ -405,26 +498,16 @@ $op_structure = array(
 			case 'textarea':
 			$ta_options = $options_item['options'];
 			$ta_width = $ta_options['full_width'] ? ' class="widefat"' : '';
+			
+			$ta_value = $database_values[ $options_item['id'] ];
+			if($ta_options['stripslashes']){
+				$ta_value = stripslashes($ta_value);
+			}
 			?>
 			<tr> 
 				<?php echo $th_with_for; ?>
 				<td>
-					<textarea <?php echo $nameid; echo $ta_width; ?> cols="<?php echo $ta_options['cols']; ?>" rows="<?php echo $ta_options['rows']; ?>"><?php
-				
-						if( !empty($database_values[ $options_item['id'] ])) {
-							$ta_value = $database_values[ $options_item['id'] ];
-							
-						}else{
-							$ta_value = $options_item['default'];
-						}
-						
-						if($ta_options['stripslashes']){
-							$ta_value = stripslashes($ta_value);
-						}
-							
-						echo $ta_value;
-					
-					?></textarea>
+					<textarea <?php echo $nameid; echo $ta_width; ?> cols="<?php echo $ta_options['cols']; ?>" rows="<?php echo $ta_options['rows']; ?>"><?php echo $htmlspecialchars(ta_value); ?></textarea>
 				
 					<?php echo $largeDesc; ?>
 				</td>
@@ -439,27 +522,11 @@ $op_structure = array(
 				<td>
 					<select <?php echo $nameid; ?>>
 						<?php
+						$select_setting = $database_values[ $options_item['id'] ];
 					
 						foreach($options_item['options'] as $key=>$option) {
-						
-							$select_setting = $database_values[ $options_item['id'] ];
-							
-							if( !empty($select_setting) ){
-								if ($key == $select_setting ) {
-									$selected = 'selected="selected"';
-								} else {
-									$selected = "";
-								}
-							}else{
-								if($key == $options_item['default']){
-									$selected = 'selected="selected"';
-								}else{
-									$selected = "";
-								}
-							}
-					
 						?>
-						<option value="<?php echo $key; ?>" <?php echo $selected; ?>><?php echo $option; ?></option>
+						<option value="<?php echo $key; ?>" <?php selected($select_setting,$key); ?>><?php echo $option; ?></option>
 						<?php } // foreach  ?>
 					
 					</select>
@@ -487,24 +554,8 @@ $op_structure = array(
 						// the idea to make it unique is use the database 'option name',  this $options_item['id'], and this radio key
 						$radio_id = $database_name.'_'.$options_item['id'].'_'.$key;
 
-						//echo $radio_setting.$key;
-						
-						if( !empty($radio_setting) ){
-							if($key == $radio_setting ){		// $key is the value of the selected checkbox, as defined in the input below, its 'value' attribute
-								$checked = 'checked="checked"';
-							} else {
-								$checked = "";
-							}
-						}else{
-							if($key == $options_item['default']){
-								$checked = 'checked="checked"';
-							}else{
-								$checked = "";
-							}
-						}
-						
 						?>
-						<input type="radio" name="<?php echo $database_entry; ?>" id="<?php echo $radio_id; ?>" value="<?php echo $key; ?>" <?php echo $checked; ?> />
+						<input type="radio" name="<?php echo $database_entry; ?>" id="<?php echo $radio_id; ?>" value="<?php echo $key; ?>" <?php checked($radio_setting,$key); ?> />
 						<label for="<?php echo $radio_id; ?>"><?php echo $option_label; ?></label>
 						<br />
 					<?php } ?>
@@ -530,23 +581,15 @@ $op_structure = array(
 						$check_nameid = $database_name.'['.$options_item['id'].']['.$check_item['check_id'].']';
 						
 						$check_setting = $database_values[ $options_item['id'] ][ $check_item['check_id'] ];
-						
-						if( !empty($checkbox_group) ){
-							if ($check_setting) {
-								$checked = 'checked="checked"';
-							} else {
-								$checked = "";
-							}
-						}else{
-							if($options_structure[ $options_item['id'] ]['default'][ $check_item['check_id'] ]){
-								$checked = 'checked="checked"';
-							}else{
-								$checked = "";
-							}
+
+						if ($check_setting) {
+							$checked = 'checked="checked"';
+						} else {
+							$checked = "";
 						}
-				
+
 						?>
-						<input type="checkbox" name="<?php echo $check_nameid; ?>" id="<?php echo $check_nameid; ?>" value="on" <?php echo $checked ?> />
+						<input type="checkbox" name="<?php echo $check_nameid; ?>" id="<?php echo $check_nameid; ?>" value="on" <?php echo $checked; ?> />
 						<label for="<?php echo $check_nameid; ?>"><?php echo $check_item['desc']; ?></label>
 						<br />
 					<?php } ?>
@@ -558,7 +601,37 @@ $op_structure = array(
 			</tr>
 			<?php
 			break;
+			
+			case 'custom':
+			
+				if(is_callable($options_item['options']['callback'])) {
 
+					call_user_func(
+							$options_item['options']['callback'],
+							$options_item['options']['parameter']
+						);
+				
+				}else{
+				?>
+			<tr><td>
+				<p>This option is of type "custom", which means it should call a custom function/object method defuned by plugin author, but its callback is invalid, it's not callable. Here's the option raw data:</p>
+				<p>&nbsp;</p>
+				<?php
+				$this->dump($options_item);
+				?>
+			</td></tr>
+				<?php
+				}
+			
+			
+
+
+				
+			
+			break;
+			
+			
+			
 			default:
 
 			break;
@@ -654,7 +727,7 @@ foreach($uninstallArgs['options'] as $option){
 	}
 //
 
-	public static function resetOptions($uninstallArgs){
+	public function resetOptions($uninstallArgs){
 		echo '<div class="wrap">';
 		echo '<h2>Uninstall '.$uninstallArgs['name'].'</h2>';
 		echo '<div id="message" class="updated fade">';
@@ -726,6 +799,8 @@ foreach($uninstallArgs['options'] as $option){
 			echo '<p><strong><a href="'.$deactivate_url.'">Click Here</a> To finish the Uninstallation and <em style="text-decoration: underline">'.$uninstallArgs['name'].'</em> will be deactivated automatically.</strong></p>';
 		}
 		echo '</div>';
+		
+		$this->loadAllOptions();
 	
 	}
 
@@ -751,16 +826,16 @@ foreach($uninstallArgs['options'] as $option){
 
 	public function debugRequestParameters(){
 		if($this->debug){
-			echo '<pre>'; print_r($this->optionsDBValue); echo'</pre>';
-			echo '<pre>'; print_r($this->opStructure); echo'</pre>';
-			echo '<pre>'; print_r($_REQUEST); echo'</pre>';
+			$this->dump($this->optionsDBValue,"optionsDBValue:");
+			$this->dump($this->opStructure,"opStructure:");
+			$this->dump($_REQUEST,'$_REQUEST:');
 		}
 	}
 	
 	public function debugDBValue(){
 		if($this->debug){
-			echo '<pre>'; print_r(get_option($this->optionsDBName)); echo '</pre>';
-			echo '<pre>'; print_r($this->optionsDBValue); echo '</pre>';
+			$this->dump(get_option($this->optionsDBName),'get_option(optionsDBName):');
+			$this->dump($this->optionsDBValue,"optionsDBValue:");
 		}
 	}
 	
@@ -770,24 +845,35 @@ foreach($uninstallArgs['options'] as $option){
 	$opStructure,// = $this->opStructure,
 	$opDBName,// = $this->optionsDBName,
 	$opDBValue// = $this->optionsDBValue
+	
+	If the plugin has no option to be used (exemple, you only want uninstall form), overwrite this method and blank it.
+	It can also be overwritten to custom options form or add more stuff to it (in this case call parent method to use original code).
 */
 	
 	public function optionsBoxForm($dbGroup,$options_item_index,$opStructure,$opDBName,$opDBValue){
+
+		$useTopSaveBtn = false;
+
+		if( is_array($options_item_index) ) {
+			if( count($options_item_index)<0) return;
+			if( count($options_item_index)>4) $useTopSaveBtn = true;
+		}else{
+			if( count($opStructure)<0) return;
+			if( count($opStructure)>4) $useTopSaveBtn = true;
+		}
+	
 ?>
 <div class="postbox hikari-postbox"><div class="inside">
 	<form method="post" action="options.php">
 
 <?php settings_fields($dbGroup); ?>
 
+		<input type="hidden" name="<?php echo $opDBName; ?>[dbVersion]" value="<?php echo $opDBValue['dbVersion']; ?>" />
 		<table class="form-table"><tbody>
 
 <?php
 
-$useTopSaveBtn = false;
 
-if( is_array($options_item_index) ) {
-	if( count($options_item_index)>4) $useTopSaveBtn = true;
-}elseif( count($opStructure)>4) $useTopSaveBtn = true;
 
 if($useTopSaveBtn){ ?>
 		<tr><td colspan="2">
@@ -805,6 +891,7 @@ $this->print_admin_option(
 			<p class="submit"><input type="submit" class="button-primary" value="<?php _e('Save Changes') ?>" /></p>
 		</td></tr>
 		</tbody></table>
+<?php $this->extraOptions(); ?>
 	</form>
 </div></div>
 <?php
@@ -900,8 +987,14 @@ wp_widget_rss_output('http://feeds.feedburner.com/HikariWebsiteDev',
 <?php
 	}
 	
+	
 	public function options_page_middle(){}
 	public function pluginLinks(){}
+	public function extraOptions(){}
+	protected function options_version_verify($dbName,$dbValue){
+		$dbValue['dbVersion'] = $this->optionsDBVersion;
+		return $dbValue; 
+	}
 	
 	
 	

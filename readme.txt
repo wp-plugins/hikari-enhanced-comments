@@ -1,10 +1,10 @@
 ﻿=== Hikari Enhanced Comments ===
 Contributors: shidouhikari 
 Donate link: http://Hikari.ws/wordpress/#donate
-Tags: comment, comments, widget, title, titled, enhanced, recent comments, ip2nation, country, IP, gravatar, pingback, MySQL, database
+Tags: comment, comments, widget, title, titled, enhanced, recent comments, most commented, ip2nation, country, IP, avatar, gravatar, pingback, MySQL, database
 Requires at least: 2.8.0
 Tested up to: 2.9.2
-Stable tag: 0.02.09
+Stable tag: 0.03.05
 
 Comments are enhanced with new features that make them more visible and becoming more exciting in website structure.
 
@@ -18,11 +18,12 @@ Things that you've been wanted to do, now can be done much easier.
 = Features =
 
 * An **Enhanced Recent Comments** *widget*, based on Wordpress core widget, but redesigned to make it possible to show at least 60 last comments.
-* Widget also allows to exclude users from having their comments shown, perfect for website owners and authors that really participate on their site's comment debates ;)
+* ERC widget allows to exclude users from having their comments shown, perfect for website owners and authors that really participate on their site's comment debates ;)
 * If you also have <a href="http://Hikari.ws/titled-comments/">Hikari Titled Comments</a> plugin installed, comments with titles have their titles listed
-* Comments authors have their gravatar shown in the widget
+* Comments authors have their gravatar shown in the ERC widget
 * For pingbacks, their gravatar is replaced by a "P" icon
-* If you have ip2nation installed (see installation instructions), comment authors are also shown with a flag of their country, in Recent Comments widget and in comments area
+* A **Most Commented Posts** *widget*, that lists your posts with higher number of comments
+* If you have ip2nation installed (see installation instructions), comment authors are also shown with a flag of their country, in Enhanced Recent Comments widget and in comments area
 * Country flags can be added anywhere in your site, you just need to tweak your theme and use your imagination
 
 
@@ -35,7 +36,7 @@ You can use the built in installer and upgrader, or you can install the plugin m
 
 1. Download the zip file, upload it to your server and extract all its content to your <code>/wp-content/plugins</code> folder. Make sure the plugin has its own folder (for exemple  <code>/wp-content/plugins/hikari-enhanced-comments/</code>).
 2. Activate the plugin through the 'Plugins' menu in WordPress admin page.
-3. Now you can go to widgets admin page and you'll find a new "Hikari Enhanced Recent Comments" widget available
+3. Now you can go to widgets admin page and you'll find 2 new widgets available: "Hikari Enhanced Recent Comments" and "Hikari Most Commented Posts"
 
 
 = Installing and configuring ip2nation =
@@ -90,7 +91,7 @@ If you want to fully uninstall the plugin and clean up database, go to its optio
 
 Plugin uninstall feature **doesn't** delete ip2nation tables, regarding if they are in same database as Wordpress or in a separated one. If they are not used anymore, currently you must delete them manually if you don't need them anymore.
 
-Also, make sure to delete "Hikari Enhanced Recent Comments" widgets before uninstalling the plugin. ATM it's not deleted upon uninstalling, I'll fix it in a future version :(
+Also, make sure to delete plugin's widgets before uninstalling the plugin. ATM it's not deleted upon uninstalling, I'll fix it in a future version :(
 
 
 
@@ -118,13 +119,25 @@ All my plugins require PHP5 because I use OOP, and WP 2.8 because I use <code>se
 
 **Hikari Titled Comments** requires WP 2.9 only because it uses comments metadata. Even though **Hikari Enhanced Comments** supports **Hikari Titled Comments**, it only uses its functions, it doesn't go over comments metadata directly, and since **Hikari Enhanced Comments** doesn't use metadata code, it works with WP 2.8. Remember these plugins work together but they don't require each other to do their own job :)
 
+= I've looked on HTML code your widgets generate, and noted they use ordered lists, but ERC shows no list marking and MCP shows a disc mark instead of number marks. Why did you do that? =
+
+I like to use correct semantic markup and nice styles on the same time. Both widgets list some content sorted by date or amount, so they are ordered lists, and not unordered. But, Recent comments, even more when titled comments are present, don't fit well with list marks, while Most Commented Posts wouldn't be nice being listed with numbers. Well at least in my theme.
+
+These styles are added directly to the HTML document, in 'wp_head' action, that's the same behavior of Wordpress Core's Recent Comments widget. If you wanna change it, just add your own style in your theme's style.css and override them. :)
+
+= You your ERC widget allows to exclude users from being listed, but MCP doesn't? =
+
+It's all database related. For Recent Comments, it's just a matter of defining comment's autor to be excluded, and MySQL does the trick easily because each comment has its author name on it.
+
+For Commented Posts, on the other hand, each post has a field informing how many comments it has, and this field is easy to use. If I'd make specific commenters be excluded, I'd have to ignore this field, make a join between wp_posts and wp_comments based on post ID, and then exclude each comment whose author name matches those defined to not be counted. This SQL query would be much heavier and I believe it's not worthy. We could use cache to store the query and avoid it being done on every page load, but that would require another plugin to handle cache persistence. Explaining all this (or even worse, explain somebody why his site's page load became a bit slower upon using the widget) wouldn't be nice. Maybe someday I implement the feature, or if somebody asks me for it.
+
 = What happens if I don't have ip2nation tables installed and working? =
 
 What the plugin does with that is query it for a country related to a IP. If tables are not accessible for *any* reason, the query will return with error and it'll be ignored.
 
-Without the code, the flag URL can't be created, generating an error. And even if the code is found, if for some reason the flag can't be accesses, same error will happen.
+Without the country code, the flag URL can't be created, generating an error. And even if the code is found, if for some reason the flag can't be accesses, same error will happen.
 
-This error is verified, and if flag is available, its <img> code is generated and provided. But if flag is unavailable, it will just return a harmless blank string. In HTML document there will be no track of it, and user will just see nothing where the flag would be placed.
+This error is verified, and if flag is available, its <img> tag is generated and provided. But if flag is unavailable, it will just return a harmless blank string. In HTML document there will be no track of it, and user will just see nothing where the flag would be placed.
 
 Of course, if you are adding the flag or relying on country code or name in your theme, you must be prepared for not receiving them, due to some error or simply the plugin not being active.
 
@@ -136,12 +149,19 @@ Of course, if you are adding the flag or relying on country code or name in your
 2. **Hikari Enhanced Recent Comments** widget, showing all comments
 3. **Hikari Enhanced Recent Comments** widget, excluding my comments!
 4. When **Hikari Titled Comments** plugin is used, comments' titles are shown!
-5. Widget config interface
+5. **Hikari Enhanced Recent Comments** widget config interface
 6. A comment author
 7. A comment author with his country flag :)
 8. Here's ip2nation Diagnose when everything's working
+6. **Hikari Most Commented Posts** widget
 
 == Changelog ==
+
+= 0.03 =
+* **New widget**: Most Commented Posts
+* Added country name to flags title attribute (popup)
+* Recent Comments widget: fixed minor widget saving code
+* Small code cleanups
 
 = 0.02 =
 * First public release.

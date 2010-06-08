@@ -49,10 +49,6 @@ class HkEC extends HkEC_HkTools{
 	
 	}
 	
-	public function startup(){
-		
-	}
-	
 	
 	
 	public function getCountryInfo($ip){
@@ -95,6 +91,9 @@ class HkEC extends HkEC_HkTools{
 		
 		$code = strtoupper($code);
 		
+		$name = $this->getCountryName($ip);
+		
+		
 		$img = apply_filters('HkEC_flag_img',$code.'.gif',$code);
 		
 		$file_found = apply_filters('HkEC_flag_file_found',file_exists($this->flag_folder_path.$img));
@@ -102,7 +101,7 @@ class HkEC extends HkEC_HkTools{
 		if(!$file_found) return;
 		
 		$flag = '<img class="comment-author-flag" alt="flag" title="'.
-					$code.' flag" src="'.$this->flag_folder_url.$img.'" />';
+					$name." ".$code.' flag" src="'.$this->flag_folder_url.$img.'" />';
 		
 		return apply_filters('HkEC_getFlag',$flag);
 
@@ -161,25 +160,35 @@ class HkEC extends HkEC_HkTools{
 }
 
 
-add_action('widgets_init', create_function('', 'return register_widget("HkEC_Widget_Recent_Comments");'));
+add_action('widgets_init', "HkEC_widgets_registration");
+
+function HkEC_widgets_registration(){
+	register_widget("HkEC_Widget_Recent_Comments");
+	register_widget("HkEC_Widget_Most_Commented_Posts");
+}
 
 class HkEC_Widget_Recent_Comments extends WP_Widget {
 
 	function HkEC_Widget_Recent_Comments() {
-		$widget_ops = array('classname' => 'widget_recent_comments widget_hikari_enhanced_recent_comments', 'description' => 'The most recent comments, built by Hikari Enhanced Comments plugin' );
+		$widget_ops = array(
+				'classname' => 'widget_recent_comments widget_hikari_enhanced_recent_comments',
+				'description' => 'The most recent comments, built by Hikari Enhanced Comments plugin'
+			);
 		$this->WP_Widget('hkec-recent-comments', 'Hikari Enhanced Recent Comments', $widget_ops);
 		
 		$this->alt_option_name = 'hkec_widget_recent_comments';
 
-		if ( is_active_widget(false, false, $this->id_base) )
+		if( is_active_widget(false, false, $this->id_base) )
 			add_action( 'wp_head', array(&$this, 'recent_comments_style') );
 
+
+
+		// when a new comment is submited
 		add_action( 'comment_post', array(&$this, 'flush_widget_cache') );
+		
+		// when comment status changes, ex: pending comment is approved
 		add_action( 'transition_comment_status', array(&$this, 'flush_widget_cache') );
 		
-		
-		
-
 	}
 	
 
@@ -209,8 +218,8 @@ WHERE comment_approved = '1' AND post_status = 'publish'";
 				$sql .= "\nAND comment_author != '".trim($exclude)."'";
 			}
 
-			$sql .= "\nORDER BY comment_date_gmt
-DESC LIMIT 60";
+			$sql .= "\nORDER BY comment_date_gmt DESC
+LIMIT 60";
 		
 			$comments = $wpdb->get_results($sql);
 			wp_cache_add( 'recent_comments', $comments, 'widget' );
@@ -226,9 +235,12 @@ DESC LIMIT 60";
 <?php // please don't remove copyright ?>
 <!-- Enhanced Recent Comments provided by
 	Hikari Enhanced Comments - http://Hikari.ws -->
+
+<?php
+			if( $comments ){
+?>
 <ol class="hkec-recentcomments-list"><?php
-			if ( $comments ){
-				foreach ( (array) $comments as $comment){
+				foreach( (array) $comments as $comment){
 					$GLOBALS['comment'] = $comment;
 				
 $comment_item = "\n\t".'<li class="hkec-recentcomments-item">';
@@ -259,13 +271,16 @@ $comment_item .= '</li>';
 					echo apply_filters('HkEC_widget_comment_item',$comment_item,$comment);
 				
 				}
-			}?>
-			
+
+?>
 </ol>
+
+<?php
+			}
 			
-		<?php echo $after_widget;
+			echo $after_widget;
 		
-		$hkEC->insideWidget=false;
+			$hkEC->insideWidget=false;
 
 	}
 	
@@ -295,8 +310,8 @@ $comment_item .= '</li>';
 		$this->flush_widget_cache();
 
 		$alloptions = wp_cache_get( 'alloptions', 'options' );
-		if ( isset($alloptions['widget_recent_comments']) )
-			delete_option('widget_recent_comments');
+		if ( isset($alloptions['hkec_widget_recent_comments']) )
+			delete_option('hkec_widget_recent_comments');
 
 		return $instance;
 	}
@@ -315,6 +330,148 @@ $comment_item .= '</li>';
 	
 	function flush_widget_cache() {
 		wp_cache_delete('recent_comments', 'widget');
+	}
+
+
+
+}
+/**/
+
+
+
+class HkEC_Widget_Most_Commented_Posts extends WP_Widget {
+
+	function HkEC_Widget_Most_Commented_Posts() {
+		$widget_ops = array(
+				'classname' => 'widget_hikari_most_commented_posts',
+				'description' => 'List of posts with higher number of comments, built by Hikari Enhanced Comments plugin'
+			);
+		$this->WP_Widget('hkec-most-commented-posts', 'Hikari Most Commented Posts', $widget_ops);
+		
+		$this->alt_option_name = 'hkec_widget_most_commented_posts';
+
+		if( is_active_widget(false, false, $this->id_base) )
+			add_action( 'wp_head', array(&$this, 'commented_posts_style') );
+
+
+		// when a new comment is submited
+		add_action( 'comment_post', array(&$this, 'flush_widget_cache') );
+		
+		// when comment status changes, ex: pending comment is approved
+		add_action( 'transition_comment_status', array(&$this, 'flush_widget_cache') );
+		
+	}
+	
+
+	function widget( $args, $instance ) {
+		global $wpdb, $comments, $comment, $hkEC;
+		
+		$hkEC->insideWidget=true;
+
+		extract($args, EXTR_SKIP);
+		$title = apply_filters('widget_title', empty($instance['title']) ? "Most Commented Posts" : $instance['title']);
+		
+		if ( !$number = (int) $instance['number'] )
+			$number = 5;
+		else if ( $number < 1 )
+			$number = 1;
+		else if ( $number > 60 )
+			$number = 60;
+			
+		$excludes = explode(",",$instance['exclude']);
+
+		if ( !$posts = wp_cache_get( 'hikari_most_commented_posts', 'widget' ) ) {
+			$sql = "SELECT ID
+FROM $wpdb->posts
+WHERE post_status = 'publish' AND comment_count > 0 ORDER BY comment_count DESC
+LIMIT 60";
+
+			$posts = $wpdb->get_results($sql);
+			wp_cache_add( 'hikari_most_commented_posts', $posts, 'widget' );
+		}
+
+		$posts = array_slice( (array) $posts, 0, $number );
+
+		
+		
+		echo $before_widget;
+		if ( $title ) echo $before_title . $title . $after_title; ?>
+
+<?php // please don't remove copyright ?>
+<!-- Most Commented Posts provided by
+	Hikari Enhanced Comments - http://Hikari.ws -->
+<?php
+		if(!empty($posts)){
+?>
+<ol class="hkec-commentedposts-list"><?php
+			foreach ( (array) $posts as $post_id){
+				global $post;
+				$post = get_post($post_id->ID);
+				$comments_count = get_comments_number($post_id->ID);
+				
+$post_item = "\n\t".'<li class="hkec-commentedposts-item">';
+
+	$post_item .= '<a href="' . get_permalink() .'" rel="bookmark" title="' .
+			the_title_attribute(array('echo' => false)) . '">'. get_the_title() .'</a> (' .
+			$comments_count .')';
+
+$post_item .= '</li>';
+
+				echo apply_filters('HkEC_widget_commentedposts_item',$post_item,$post);
+				
+			}
+?>
+			
+</ol>
+			
+<?php
+		}	// if(!empty($posts))
+		
+		echo $after_widget;
+		
+		$hkEC->insideWidget=false;
+
+	}
+	
+	function form( $instance ) {
+		$title = isset($instance['title']) ? esc_attr($instance['title']) : '';
+		$number = isset($instance['number']) ? absint($instance['number']) : 5;
+?>
+		<p><label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?></label>
+		<input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" type="text" value="<?php echo $title; ?>" /></p>
+
+		<p><label for="<?php echo $this->get_field_id('number'); ?>">Number of posts to show:</label><br />
+		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /><br />
+		<small>(at most 60)</small></p>
+
+<?php
+	}
+	
+	function update( $new_instance, $old_instance ) {
+		$instance = $old_instance;
+		$instance['title'] = strip_tags($new_instance['title']);
+		$instance['number'] = (int) $new_instance['number'];
+		$this->flush_widget_cache();
+
+		$alloptions = wp_cache_get( 'alloptions', 'options' );
+		if ( isset($alloptions['hkec_widget_most_commented_posts']) )
+			delete_option('hkec_widget_most_commented_posts');
+
+		return $instance;
+	}
+	
+	
+	
+
+	function commented_posts_style() { ?>
+<style type="text/css">
+	.hkec-commentedposts-item{list-style-type: disc;}
+</style>
+<?php
+	}
+
+	function flush_widget_cache() {
+		wp_cache_delete('hikari_most_commented_posts', 'widget');
 	}
 
 
